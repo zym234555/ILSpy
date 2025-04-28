@@ -73,27 +73,6 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				GetOverlayIcon(method.Accessibility), method.IsStatic);
 		}
 
-		internal static AccessOverlayIcon GetOverlayIcon(Accessibility accessibility)
-		{
-			switch (accessibility)
-			{
-				case Accessibility.Public:
-					return AccessOverlayIcon.Public;
-				case Accessibility.Internal:
-					return AccessOverlayIcon.Internal;
-				case Accessibility.ProtectedAndInternal:
-					return AccessOverlayIcon.PrivateProtected;
-				case Accessibility.Protected:
-					return AccessOverlayIcon.Protected;
-				case Accessibility.ProtectedOrInternal:
-					return AccessOverlayIcon.ProtectedInternal;
-				case Accessibility.Private:
-					return AccessOverlayIcon.Private;
-				default:
-					return AccessOverlayIcon.CompilerControlled;
-			}
-		}
-
 		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
 		{
 			language.DecompileMethod(MethodDefinition, output, options);
