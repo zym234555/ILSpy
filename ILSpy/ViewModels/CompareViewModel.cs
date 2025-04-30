@@ -423,7 +423,25 @@ namespace ICSharpCode.ILSpy.ViewModels
 
 		public override object Text => entry.Signature;
 
-		public override object Icon => Images.GetIcon(;
+		public override object Icon {
+			get {
+				switch (entry.Entity)
+				{
+					case ITypeDefinition t:
+						return TypeTreeNode.GetIcon(t);
+					case IMethod m:
+						return MethodTreeNode.GetIcon(m);
+					case IField f:
+						return FieldTreeNode.GetIcon(f);
+					case IProperty p:
+						return PropertyTreeNode.GetIcon(p);
+					case IEvent e:
+						return EventTreeNode.GetIcon(e);
+					default:
+						throw new NotSupportedException();
+				}
+			}
+		}
 
 		public DiffKind Difference => entry.Kind;
 
