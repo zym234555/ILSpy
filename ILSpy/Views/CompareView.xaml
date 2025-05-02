@@ -30,15 +30,6 @@
 									</Border>
 								</Border>
 								<ControlTemplate.Triggers>
-									<DataTrigger Binding="{Binding Difference}" Value="Update">
-										<Setter Property="Background" Value="LightBlue" />
-									</DataTrigger>
-									<DataTrigger Binding="{Binding Difference}" Value="Add">
-										<Setter Property="Background" Value="LightGreen" />
-									</DataTrigger>
-									<DataTrigger Binding="{Binding Difference}" Value="Remove">
-										<Setter Property="Background" Value="LightPink" />
-									</DataTrigger>
 									<DataTrigger Binding="{Binding IsPublicAPI}" Value="False">
 										<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
 									</DataTrigger>

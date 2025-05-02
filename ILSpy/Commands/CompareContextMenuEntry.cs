@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System.Composition;
+using System.Threading.Tasks;
 
 using ICSharpCode.ILSpy.AssemblyTree;
 using ICSharpCode.ILSpy.Docking;
@@ -37,12 +38,19 @@ namespace ICSharpCode.ILSpy
 
 			var tabPage = dockWorkspace.AddTabPage();
 
-			tabPage.Title = $"Compare {left.Text} - {right.Text}";
-			tabPage.SupportsLanguageSwitching = false;
-			tabPage.FrozenContent = true;
-			var compareView = new CompareView();
-			compareView.DataContext = new CompareViewModel(assemblyTreeModel, left, right);
-			tabPage.Content = compareView;
+			tabPage.ShowTextView(t => t.RunWithCancellation(token => Task.Run(DoCompare, token), $"Comparing {left.Text} - {right.Text}").Then(vm => {
+				tabPage.Title = $"Compare {left.Text} - {right.Text}";
+				tabPage.SupportsLanguageSwitching = false;
+				tabPage.FrozenContent = true;
+				var compareView = new CompareView();
+				compareView.DataContext = vm;
+				tabPage.Content = compareView;
+			}));
+
+			CompareViewModel DoCompare()
+			{
+				return new CompareViewModel(assemblyTreeModel, left, right);
+			}
 		}
 
 		public bool IsEnabled(TextViewContext context)

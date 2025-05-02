@@ -10,6 +10,8 @@ using ICSharpCode.ILSpyX;
 
 using TomsToolbox.Wpf;
 
+#nullable enable
+
 namespace ICSharpCode.ILSpy.ViewModels
 {
 	using System.Linq;
@@ -142,7 +144,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 			Dictionary<TypeDefinitionHandle, Entry> typeEntries = new();
 			Dictionary<string, Entry> namespaceEntries = new(StringComparer.Ordinal);
 
-			Entry root = new Entry { Entity = null!, Signature = module.FullAssemblyName };
+			Entry root = new Entry { Entity = module, Signature = module.FullAssemblyName };
 
 			// typeEntries need a different signature: must include list of base types
 
@@ -190,7 +192,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 				{
 					if (!namespaceEntries.TryGetValue(typeDef.Namespace, out var nsEntry))
 					{
-						namespaceEntries[typeDef.Namespace] = nsEntry = new Entry { Parent = root, Signature = typeDef.Namespace, Entity = null! };
+						namespaceEntries[typeDef.Namespace] = nsEntry = new Entry { Parent = root, Signature = typeDef.Namespace, Entity = ResolveNamespace(typeDef.Namespace, typeDef.ParentModule)! };
 						root.Children ??= new();
 						root.Children.Add(nsEntry);
 					}
@@ -242,6 +244,27 @@ namespace ICSharpCode.ILSpy.ViewModels
 			}
 
 			return (results, root);
+
+			INamespace? ResolveNamespace(string namespaceName, IModule module)
+			{
+				INamespace current = module.RootNamespace;
+				string[] parts = namespaceName.Split('.');
+
+				for (int i = 0; i < parts.Length; i++)
+				{
+					if (i == 0 && string.IsNullOrEmpty(parts[i]))
+					{
+						continue;
+					}
+					var next = current.GetChildNamespace(parts[i]);
+					if (next != null)
+						current = next;
+					else
+						return null;
+				}
+
+				return current;
+			}
 		}
 
 		List<(Entry? Left, Entry? Right)> CalculateDiff(List<Entry> left, List<Entry> right)
@@ -279,7 +302,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 						results.Add((item, other));
 						if (other == null)
 						{
-							item.Kind = DiffKind.Remove;
+							SetKind(item, DiffKind.Remove);
 						}
 					}
 				}
@@ -287,7 +310,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 				{
 					foreach (var item in items)
 					{
-						item.Kind = DiffKind.Remove;
+						SetKind(item, DiffKind.Remove);
 						results.Add((item, null));
 					}
 				}
@@ -302,7 +325,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 						if (!leftEntries.Any(_ => EntryComparer.Instance.Equals(_, item)))
 						{
 							results.Add((null, item));
-							item.Kind = DiffKind.Add;
+							SetKind(item, DiffKind.Add);
 						}
 					}
 				}
@@ -310,27 +333,40 @@ namespace ICSharpCode.ILSpy.ViewModels
 				{
 					foreach (var item in items)
 					{
-						item.Kind = DiffKind.Add;
+						SetKind(item, DiffKind.Add);
 						results.Add((null, item));
 					}
 				}
 			}
 
 			return results;
+
+			static void SetKind(Entry item, DiffKind kind)
+			{
+				if (item.Children?.Count > 0)
+				{
+					foreach (var child in item.Children)
+					{
+						SetKind(child, kind);
+					}
+				}
+				else
+				{
+					item.Kind = kind;
+				}
+			}
 		}
 	}
 
 	[DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
 	public class Entry
 	{
-		private DiffKind kind = DiffKind.None;
+		private DiffKind? kind;
 
-		public DiffKind Kind {
+		public DiffKind RecursiveKind {
 			get {
-				if (Children == null || Children.Count == 0)
-				{
-					return kind;
-				}
+				if (kind != null)
+					return kind.Value;
 
 				int addCount = 0, removeCount = 0, updateCount = 0;
 
@@ -358,15 +394,11 @@ namespace ICSharpCode.ILSpy.ViewModels
 					return DiffKind.Update;
 				return DiffKind.None;
 			}
-			set {
-				if (Children == null || Children.Count == 0)
-				{
-					kind = value;
-				}
-			}
 		}
+
+		public DiffKind Kind { get; set; }
 		public required string Signature { get; init; }
-		public required IEntity Entity { get; init; }
+		public required ISymbol Entity { get; init; }
 
 		public Entry? Parent { get; set; }
 		public List<Entry>? Children { get; set; }
@@ -421,7 +453,29 @@ namespace ICSharpCode.ILSpy.ViewModels
 			}
 		}
 
-		public override object Text => entry.Signature;
+		public override object Text {
+			get {
+				switch (entry.Entity)
+				{
+					case ITypeDefinition t:
+						return this.Language.TypeToString(t, includeNamespace: false) + GetSuffixString(t.MetadataToken);
+					case IMethod m:
+						return this.Language.MethodToString(m, false, false, false) + GetSuffixString(m.MetadataToken);
+					case IField f:
+						return this.Language.FieldToString(f, false, false, false) + GetSuffixString(f.MetadataToken);
+					case IProperty p:
+						return this.Language.PropertyToString(p, false, false, false) + GetSuffixString(p.MetadataToken);
+					case IEvent e:
+						return this.Language.EventToString(e, false, false, false) + GetSuffixString(e.MetadataToken);
+					case INamespace n:
+						return n.FullName;
+					case IModule m:
+						return m.FullAssemblyName;
+					default:
+						return entry.Signature;
+				}
+			}
+		}
 
 		public override object Icon {
 			get {
@@ -437,16 +491,28 @@ namespace ICSharpCode.ILSpy.ViewModels
 						return PropertyTreeNode.GetIcon(p);
 					case IEvent e:
 						return EventTreeNode.GetIcon(e);
+					case INamespace n:
+						return Images.Namespace;
+					case IModule m:
+						return Images.Assembly;
 					default:
 						throw new NotSupportedException();
 				}
 			}
 		}
 
-		public DiffKind Difference => entry.Kind;
+
+
+		public DiffKind RecursiveKind => entry.RecursiveKind;
+		public DiffKind Kind => entry.Kind;
 
 		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
 		{
 		}
+
+		//public override FilterResult Filter(LanguageSettings settings)
+		//{
+		//	return RecursiveKind != DiffKind.None ? FilterResult.Match : FilterResult.Hidden;
+		//}
 	}
 }
