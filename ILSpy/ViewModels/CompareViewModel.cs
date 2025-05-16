@@ -15,6 +15,7 @@ using TomsToolbox.Wpf;
 namespace ICSharpCode.ILSpy.ViewModels
 {
 	using System.Linq;
+	using System.Windows.Media;
 
 	using ICSharpCode.Decompiler;
 	using ICSharpCode.Decompiler.TypeSystem;
@@ -90,6 +91,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 		{
 			var m = new Entry() {
 				Entity = a.Entity,
+				OtherEntity = b.Entity,
 				Signature = a.Signature,
 			};
 
@@ -367,12 +369,14 @@ namespace ICSharpCode.ILSpy.ViewModels
 			get {
 				if (kind != null)
 					return kind.Value;
+				if (Children == null)
+					return DiffKind.None;
 
 				int addCount = 0, removeCount = 0, updateCount = 0;
 
 				foreach (var item in Children)
 				{
-					switch (item.Kind)
+					switch (item.RecursiveKind)
 					{
 						case DiffKind.Add:
 							addCount++;
@@ -396,16 +400,20 @@ namespace ICSharpCode.ILSpy.ViewModels
 			}
 		}
 
-		public DiffKind Kind { get; set; }
+		public DiffKind Kind {
+			get => this.kind ?? DiffKind.None;
+			set => this.kind = value;
+		}
 		public required string Signature { get; init; }
 		public required ISymbol Entity { get; init; }
+		public ISymbol? OtherEntity { get; init; }
 
 		public Entry? Parent { get; set; }
 		public List<Entry>? Children { get; set; }
 
 		private string GetDebuggerDisplay()
 		{
-			return $"Entry{Kind}{Entity?.ToString() ?? Signature}";
+			return $"Entry{Kind}{Entity.ToString() ?? Signature}";
 		}
 	}
 
@@ -447,7 +455,7 @@ namespace ICSharpCode.ILSpy.ViewModels
 			if (entry.Children == null)
 				return;
 
-			foreach (var item in entry.Children)
+			foreach (var item in entry.Children.OrderBy(e => (-(int)e.RecursiveKind, e.Entity.SymbolKind, e.Signature)))
 			{
 				this.Children.Add(new ComparisonEntryTreeNode(item));
 			}
@@ -455,25 +463,21 @@ namespace ICSharpCode.ILSpy.ViewModels
 
 		public override object Text {
 			get {
-				switch (entry.Entity)
-				{
-					case ITypeDefinition t:
-						return this.Language.TypeToString(t, includeNamespace: false) + GetSuffixString(t.MetadataToken);
-					case IMethod m:
-						return this.Language.MethodToString(m, false, false, false) + GetSuffixString(m.MetadataToken);
-					case IField f:
-						return this.Language.FieldToString(f, false, false, false) + GetSuffixString(f.MetadataToken);
-					case IProperty p:
-						return this.Language.PropertyToString(p, false, false, false) + GetSuffixString(p.MetadataToken);
-					case IEvent e:
-						return this.Language.EventToString(e, false, false, false) + GetSuffixString(e.MetadataToken);
-					case INamespace n:
-						return n.FullName;
-					case IModule m:
-						return m.FullAssemblyName;
-					default:
-						return entry.Signature;
-				}
+				string? entityText = GetEntityText(entry.Entity);
+				string? otherText = GetEntityText(entry.OtherEntity);
+
+				return entityText + (otherText != null &&  ? " -> " + otherText : "");
+
+				string? GetEntityText(ISymbol? symbol) => symbol switch {
+					ITypeDefinition t => this.Language.TypeToString(t, includeNamespace: false) + GetSuffixString(t.MetadataToken),
+					IMethod m => this.Language.MethodToString(m, false, false, false) + GetSuffixString(m.MetadataToken),
+					IField f => this.Language.FieldToString(f, false, false, false) + GetSuffixString(f.MetadataToken),
+					IProperty p => this.Language.PropertyToString(p, false, false, false) + GetSuffixString(p.MetadataToken),
+					IEvent e => this.Language.EventToString(e, false, false, false) + GetSuffixString(e.MetadataToken),
+					INamespace n => n.FullName,
+					IModule m => m.FullAssemblyName,
+					_ => null,
+				};
 			}
 		}
 
@@ -501,11 +505,6 @@ namespace ICSharpCode.ILSpy.ViewModels
 			}
 		}
 
-
-
-		public DiffKind RecursiveKind => entry.RecursiveKind;
-		public DiffKind Kind => entry.Kind;
-
 		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
 		{
 		}
@@ -514,5 +513,21 @@ namespace ICSharpCode.ILSpy.ViewModels
 		//{
 		//	return RecursiveKind != DiffKind.None ? FilterResult.Match : FilterResult.Hidden;
 		//}
+
+		public Brush Background {
+			get {
+				switch (entry.RecursiveKind)
+				{
+					case DiffKind.Add:
+						return Brushes.LightGreen;
+					case DiffKind.Remove:
+						return Brushes.LightPink;
+					case DiffKind.Update:
+						return Brushes.LightBlue;
+				}
+
+				return Brushes.Transparent;
+			}
+		}
 	}
 }
