@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2021 Siegfried Pammer
+﻿// Copyright (c) 2025 Siegfried Pammer
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -16,44 +16,55 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using ICSharpCode.Decompiler.CSharp.Syntax.PatternMatching;
+using ICSharpCode.Decompiler.TypeSystem;
 
 namespace ICSharpCode.Decompiler.CSharp.Syntax
 {
-	/// <summary>
-	/// BaseType "(" Argument { "," Argument } ")"
-	/// </summary>
-	public class InvocationAstType : AstType
+	public class ExtensionDeclaration : EntityDeclaration
 	{
-		public AstNodeCollection<Expression> Arguments {
-			get { return GetChildrenByRole(Roles.Expression); }
+		public readonly static TokenRole ExtensionKeywordRole = new TokenRole("extension");
+
+		public override SymbolKind SymbolKind => throw new System.NotImplementedException();
+
+		public AstNodeCollection<TypeParameterDeclaration> TypeParameters {
+			get { return GetChildrenByRole(Roles.TypeParameter); }
 		}
 
-		public AstType BaseType {
-			get { return GetChildByRole(Roles.Type); }
-			set { SetChildByRole(Roles.Type, value); }
+		public AstNodeCollection<ParameterDeclaration> ReceiverParameters {
+			get { return GetChildrenByRole(Roles.Parameter); }
+		}
+
+		public AstNodeCollection<Constraint> Constraints {
+			get { return GetChildrenByRole(Roles.Constraint); }
+		}
+
+		public AstNodeCollection<EntityDeclaration> Members {
+			get { return GetChildrenByRole(Roles.TypeMemberRole); }
+		}
+
+		public ExtensionDeclaration()
+		{
 		}
 
 		public override void AcceptVisitor(IAstVisitor visitor)
 		{
-			visitor.VisitInvocationType(this);
+			visitor.VisitExtensionDeclaration(this);
 		}
 
 		public override T AcceptVisitor<T>(IAstVisitor<T> visitor)
 		{
-			return visitor.VisitInvocationType(this);
+			return visitor.VisitExtensionDeclaration(this);
 		}
 
 		public override S AcceptVisitor<T, S>(IAstVisitor<T, S> visitor, T data)
 		{
-			return visitor.VisitInvocationType(this, data);
+			return visitor.VisitExtensionDeclaration(this, data);
 		}
 
-		protected internal override bool DoMatch(AstNode other, Match match)
+		protected internal override bool DoMatch(AstNode other, PatternMatching.Match match)
 		{
-			return other is InvocationAstType o
-				&& this.BaseType.DoMatch(o.BaseType, match)
-				&& this.Arguments.DoMatch(o.Arguments, match);
+			var o = other as ExtensionDeclaration;
+			return o != null;
 		}
 	}
 }
