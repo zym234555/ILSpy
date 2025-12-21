@@ -608,6 +608,7 @@ namespace System.Runtime.CompilerServices
 				if (flags.HasFlag(CompilerOptions.ProcessXmlDoc))
 				{
 					otherOptions += $"-doc:\"{Path.ChangeExtension(results.PathToAssembly, ".xml")}\" ";
+					noWarn.Add("CS1591"); // Missing XML comment for publicly visible type or member 'Type_or_Member'
 				}
 
 				if (flags.HasFlag(CompilerOptions.CheckForOverflowUnderflow))
@@ -622,7 +623,6 @@ namespace System.Runtime.CompilerServices
 				if (preprocessorSymbols.Count > 0)
 				{
 					otherOptions += " \"-d:" + string.Join(";", preprocessorSymbols) + "\" ";
-					noWarn.Add("CS1591");
 				}
 
 				if (noWarn.Count > 0)
@@ -721,7 +721,7 @@ namespace System.Runtime.CompilerServices
 					CompilerOptions.UseRoslyn1_3_2 => CSharp.LanguageVersion.CSharp6,
 					CompilerOptions.UseRoslyn2_10_0 => CSharp.LanguageVersion.CSharp7_3,
 					CompilerOptions.UseRoslyn3_11_0 => CSharp.LanguageVersion.CSharp9_0,
-					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp13_0,
+					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp14_0,
 				};
 				DecompilerSettings settings = new(langVersion) {
 					// Never use file-scoped namespaces

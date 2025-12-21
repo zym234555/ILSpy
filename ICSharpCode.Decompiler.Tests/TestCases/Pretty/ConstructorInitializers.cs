@@ -16,6 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+#pragma warning disable CS9113
+
 using System;
 using System.Collections.Generic;
 
@@ -260,6 +262,32 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 #else
 		public class UnusedPrimaryCtorParameter(int unused)
 		{
+		}
+#endif
+#if OPT && EXPECTED_OUTPUT
+		public class C8(object obj)
+		{
+			public int Test()
+			{
+				object obj2 = obj;
+				if (obj2 is int)
+				{
+					return (int)obj2;
+				}
+				return 0;
+			}
+		}
+#else
+		public class C8(object obj)
+		{
+			public int Test()
+			{
+				if (obj is int result)
+				{
+					return result;
+				}
+				return 0;
+			}
 		}
 #endif
 #endif
